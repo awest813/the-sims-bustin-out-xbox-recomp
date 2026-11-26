@@ -128,22 +128,22 @@ function Prompt-IsoFileDialog {
     try {
         Add-Type -AssemblyName System.Windows.Forms | Out-Null
         $dlg = New-Object System.Windows.Forms.OpenFileDialog
-        $dlg.Title = "Select your Original Xbox ISO for The Sims: Bustin' Out (USA)"
-        $dlg.Filter = "Xbox ISO Images (*.iso;*.xiso)|*.iso;*.xiso|All Files (*.*)|*.*"
+        $dlg.Title = "Select your The Sims: Bustin' Out Xbox ISO (.iso) or extracted default.xbe"
+        $dlg.Filter = "Xbox ISO or default.xbe (*.iso;*.xiso;default.xbe)|*.iso;*.xiso;default.xbe|All Files (*.*)|*.*"
         $dlg.InitialDirectory = (Split-Path -Parent $RepoRoot)
         if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             return $dlg.FileName
         }
     } catch {
-        Write-Warn "File dialog unavailable; please type the full path to your .iso file:"
-        $typed = Read-Host "  ISO path"
+        Write-Warn "File dialog unavailable; please type the full path to your .iso or default.xbe:"
+        $typed = Read-Host "  ISO or default.xbe path"
         if ($typed) { return $typed.Trim('"') }
     }
     return $null
 }
 
 function Get-XbeTitleId($pyInfo, $xbePath) {
-    $code = "import struct,sys; b=open(sys.argv[1],'rb').read(8192); assert b[:4]==b'XBEH'; base=struct.unpack_from('<I',b,0x104)[0]; cva=struct.unpack_from('<I',b,0x118)[0]; off=cva-base; tid=struct.unpack_from('<I',b,off+8)[0]; print(f'0x{tid:08X}')"
+    $code = "import struct,sys; b=open(sys.argv[1],'rb').read(8192); assert len(b)>=0x120 and b[:4]==b'XBEH'; base=struct.unpack_from('<I',b,0x104)[0]; cva=struct.unpack_from('<I',b,0x118)[0]; off=cva-base; assert 0<=off<=len(b)-12; tid=struct.unpack_from('<I',b,off+8)[0]; print(f'0x{tid:08X}')"
     $out = Invoke-Py $pyInfo @("-c", $code, $xbePath) 2>$null
     if ($LASTEXITCODE -eq 0 -and $out) { return ($out -join "").Trim() }
     return $null
@@ -255,17 +255,31 @@ try {
             exit 1
         }
 
-        Write-Info "Extracting Xbox ISO -> game\ (this takes ~10-30 seconds; original ISO is untouched)..."
-        $env:PYTHONPATH = Join-Path $RepoRoot "third_party\xboxrecomp"
-        New-Item -ItemType Directory -Force -Path (Join-Path $RepoRoot "game") | Out-Null
-        Invoke-Py $py @("-m", "tools.xiso", "unpack", $chosenIso, "-o", "game")
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $xbePath)) {
-            Write-Err "ISO extraction failed or default.xbe was not found inside the image."
-            exit 1
+        if ([System.IO.Path]::GetExtension($chosenIso).ToLowerInvariant() -eq ".xbe") {
+            $srcDir = Split-Path -Parent $chosenIso
+            Write-Info "Copying extracted game files from $srcDir -> game\ ..."
+            New-Item -ItemType Directory -Force -Path (Join-Path $RepoRoot "game") | Out-Null
+            Copy-Item (Join-Path $srcDir "*") (Join-Path $RepoRoot "game") -Recurse -Force
+            if (-not (Test-Path $xbePath)) {
+                Write-Err "default.xbe was not found after copying from $srcDir."
+                exit 1
+            }
+            $tid = Get-XbeTitleId $py $xbePath
+            $gameFiles = (Get-ChildItem (Join-Path $RepoRoot "game") -File).Count
+            Write-Ok "Copied $gameFiles files into game\ (Title ID: $tid)"
+        } else {
+            Write-Info "Extracting Xbox ISO -> game\ (this takes ~10-30 seconds; original ISO is untouched)..."
+            $env:PYTHONPATH = Join-Path $RepoRoot "third_party\xboxrecomp"
+            New-Item -ItemType Directory -Force -Path (Join-Path $RepoRoot "game") | Out-Null
+            Invoke-Py $py @("-m", "tools.xiso", "unpack", $chosenIso, "-o", "game")
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $xbePath)) {
+                Write-Err "ISO extraction failed or default.xbe was not found inside the image."
+                exit 1
+            }
+            $tid = Get-XbeTitleId $py $xbePath
+            $gameFiles = (Get-ChildItem (Join-Path $RepoRoot "game") -File).Count
+            Write-Ok "Extracted $gameFiles files into game\ (Title ID: $tid)"
         }
-        $tid = Get-XbeTitleId $py $xbePath
-        $gameFiles = (Get-ChildItem (Join-Path $RepoRoot "game") -File).Count
-        Write-Ok "Extracted $gameFiles files into game\ (Title ID: $tid)"
     }
 
     # ── Step 3: Static Recompilation (default.xbe -> src\recomp\gen\) ────────
@@ -288,11 +302,13 @@ try {
     Write-Host ""
     Write-Host "[Step 4/4] Building native Windows x64 executable (Release)..." -ForegroundColor White
     $exePath = Join-Path $RepoRoot "build\Release\sims_bustin_out_recomp.exe"
-    $needsBuild = $ForceBuild -or (-not (Test-Path $exePath))
+    $needsBuild = $ForceBuild -or $ForceRecomp -or (-not (Test-Path $exePath))
     if (-not $needsBuild) {
         $exeTime = (Get-Item $exePath).LastWriteTime
         $newer = Get-ChildItem (Join-Path $RepoRoot "src") -File | Where-Object { $_.LastWriteTime -gt $exeTime }
-        if ($newer -or ((Get-Item (Join-Path $RepoRoot "CMakeLists.txt")).LastWriteTime -gt $exeTime)) {
+        if ($newer `
+            -or ((Get-Item (Join-Path $RepoRoot "CMakeLists.txt")).LastWriteTime -gt $exeTime) `
+            -or ((Test-Path $dispatchC) -and ((Get-Item $dispatchC).LastWriteTime -gt $exeTime))) {
             $needsBuild = $true
         }
     }

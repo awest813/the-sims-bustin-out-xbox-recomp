@@ -16,7 +16,7 @@ No command-line knowledge needed:
    *(Already have Visual Studio 2019/2022 with C++ and Python 3.10+? Skip straight to step 2.)*
 2. **Download or clone this repository**, then **double-click `setup.bat`**:
    - Automatically verifies Python, CMake, and Visual Studio C++, and installs `capstone` via `pip` if missing.
-   - Auto-detects a nearby Xbox `.iso` / `.xiso.iso` or opens a **Windows File Explorer picker** so you can select your legally dumped *The Sims: Bustin' Out (USA)* disc image (supports both raw XISO and Redump images — your original ISO is never modified).
+   - Auto-detects a nearby Xbox `.iso` / `.xiso.iso` or opens a **Windows File Explorer picker** so you can select your legally dumped *The Sims: Bustin' Out (USA)* disc image or an already-extracted `default.xbe` (supports both raw XISO and Redump images — your original files are never modified).
    - Automatically extracts the ISO into `game/`, statically recompiles `default.xbe` into `src/recomp/gen/`, and compiles the native Release executable (`build\Release\sims_bustin_out_recomp.exe`).
    - Offers to launch the game immediately when finished!
 3. **Play anytime**: Double-click **`play.bat`** (if you haven't run setup yet, `play.bat` will offer to run `setup.bat` for you).
