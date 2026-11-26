@@ -212,13 +212,8 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
     if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
         uintptr_t fault_addr = ep->ExceptionRecord->ExceptionInformation[1];
 
-        /*
-         * GPU register probe at 0xFD000000 range.
-         * Some games probe NV2A registers directly. On real hardware this
-         * returns GPU state; here we just skip the instruction.
-         * TODO: Implement mini x86-64 decoder for instruction skipping,
-         * or connect to the xbox_nv2a library for proper handling.
-         */
+        /* Unmapped NV2A MMIO probes (0xFD000000..0xFDFFFFFF) are handled by
+         * xbox_memory_layout's own VEH; pass through here. */
         if (fault_addr >= 0xFD000000 && fault_addr < 0xFE000000) {
             return EXCEPTION_CONTINUE_SEARCH;
         }
@@ -244,18 +239,6 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
         fprintf(stderr, "  Xbox VA of fault: 0x%08X\n",
             (uint32_t)(fault_addr - (uintptr_t)g_xbox_mem_offset));
         print_guest_context((void *)ep->ContextRecord->Rip);
-
-        /*
-         * TODO: Add game-specific diagnostics here. Examples:
-         *
-         * Dump CRT heap handle:
-         *   uint32_t heap = *(uint32_t *)((uint8_t *)g_xbox_mem_offset + HEAP_HANDLE_VA);
-         *   fprintf(stderr, "  CRT heap handle: 0x%08X\n", heap);
-         *
-         * Dump game state:
-         *   uint32_t state = *(uint32_t *)((uint8_t *)g_xbox_mem_offset + GAME_STATE_VA);
-         *   fprintf(stderr, "  Game state: %u\n", state);
-         */
 
         /* Print native stack return addresses for debugging */
         {

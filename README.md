@@ -52,17 +52,24 @@ A native Windows x64 static recompilation port of **The Sims: Bustin' Out (USA)*
 ## Building from Source
 
 ### Prerequisites
-- Windows 10/11 x64, Visual Studio 2022 (C++ Desktop workload), CMake 3.20+, Python 3.10+ (`pip install capstone`)
+- Windows 10/11 x64, Visual Studio 2022 (Desktop development with C++), CMake 3.20+, Python 3.10+ (`pip install capstone`)
 - Your own legally dumped Original Xbox ISO or extracted `game/default.xbe` (Title ID `0x45410043`)
 
 ### 1. Generate Recompiled C Sources from Your `default.xbe`
-Place your extracted disc files (including `default.xbe`) in `game/` and run the included `xboxrecomp` pipeline:
+Place your extracted disc files (including `default.xbe`) in `game/` and run the helper script:
 
 ```powershell
-python third_party/xboxrecomp/tools/disasm/__main__.py game/default.xbe -o analysis/disasm
-python third_party/xboxrecomp/tools/func_id/__main__.py game/default.xbe -d analysis/disasm -o analysis/func_id
-python third_party/xboxrecomp/tools/abi_analysis/__main__.py game/default.xbe -d analysis/disasm -o analysis/abi
-python third_party/xboxrecomp/tools/recomp/__main__.py game/default.xbe --functions analysis/disasm/functions.json --output src/recomp/gen --split 1000
+.\scripts\recomp.ps1
+```
+
+Or run the four pipeline stages manually:
+
+```powershell
+$env:PYTHONPATH = "$PWD\third_party\xboxrecomp"
+python -m tools.disasm game\default.xbe -o analysis\disasm
+python -m tools.func_id game\default.xbe --functions analysis\disasm\functions.json --strings analysis\disasm\strings.json --xrefs analysis\disasm\xrefs.json -o analysis\func_id
+python -m tools.abi_analysis game\default.xbe --disasm-dir analysis\disasm --func-id-dir analysis\func_id --output-dir analysis\abi
+python -m tools.recomp game\default.xbe --game-name "The Sims Bustin Out" --all --split 250 --gen-dir src\recomp\gen --disasm-dir analysis\disasm --func-id-dir analysis\func_id --abi-dir analysis\abi --exclude-manual src\recomp_manual.c
 ```
 
 ### 2. Configure & Build (Release)
@@ -72,7 +79,20 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release --parallel
 ```
 
+## Project Layout
+
+| Path | Description |
+|---|---|
+| `src/main.c` | Native Win32 entry point, CLI switches, Xbox memory/kernel/APU/OHCI/D3D11 bring-up, VEH crash diagnostics |
+| `src/recomp_manual.c` | Manual overrides (`D3D_BlockOnTime` volatile semaphore wait, `MU_Init`, XAPI/CRT helpers) |
+| `src/nv2a_d3d11_backend.c/.h` | Native Direct3D 11 NV2A backend (combiners, stage-1 multitex, BC1–BC3, RT/DSV/tex LRU caches, borderless fullscreen) |
+| `src/nv2a_vsh_hlsl.c/.h` | GPU-side 128-bit NV2A vertex shader microcode → HLSL (`vs_4_0`) translator |
+| `src/launcher_ui.c/.h`, `src/launcher_config.c/.h` | Native Win32 3-tab Launcher, Settings UI, and `sims_launcher.ini` persistence |
+| `src/xiso_extract.c/.h` | Read-only Original Xbox XISO / Redump ISO inspector & extractor |
+| `scripts/recomp.ps1` | End-to-end helper script to lift `game/default.xbe` into `src/recomp/gen/` |
+| `third_party/xboxrecomp/` | Vendored MIT-licensed `xboxrecomp` runtime & Python recompilation toolkit |
+
 ## License & Credits
 
-- Port code (`src/`): MIT License
+- Port code (`src/`, `scripts/`): [MIT License](LICENSE)
 - Vendored [`xboxrecomp`](third_party/xboxrecomp) toolkit: MIT License — Copyright (c) 2026 sp00nz (see `third_party/xboxrecomp/LICENSE` and `third_party/xboxrecomp/NOTICE`)

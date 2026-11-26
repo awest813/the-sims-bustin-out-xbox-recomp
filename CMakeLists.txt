@@ -41,6 +41,12 @@ add_subdirectory(${XBOXRECOMP_DIR} ${CMAKE_BINARY_DIR}/xboxrecomp)
 # time, so a newly generated file (an extra chunk, recomp_stubs_unresolved.c)
 # is silently left out of the build and shows up as unresolved externals.
 file(GLOB RECOMP_GEN_SOURCES CONFIGURE_DEPENDS "src/recomp/gen/*.c")
+if(NOT RECOMP_GEN_SOURCES)
+    message(FATAL_ERROR
+        "No generated recompiled C sources found in src/recomp/gen/.\n"
+        "Place your legally dumped default.xbe in game/ and run .\\scripts\\recomp.ps1 first.\n"
+        "See README.md for step-by-step build instructions.")
+endif()
 
 # Core game sources
 set(GAME_SOURCES
