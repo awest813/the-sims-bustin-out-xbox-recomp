@@ -21,37 +21,51 @@ try {
         exit 1
     }
 
+    $pyCmd = Get-Command python -ErrorAction SilentlyContinue
+    $usePyLauncher = $false
+    if (-not $pyCmd -or $pyCmd.Source -like "*\WindowsApps\*") {
+        if (Get-Command py -ErrorAction SilentlyContinue) {
+            $usePyLauncher = $true
+        } else {
+            Write-Error "Python 3.10+ not found on PATH."
+            exit 1
+        }
+    }
+    function Invoke-Stage([string[]]$PyArgs) {
+        if ($usePyLauncher) { & py -3 @PyArgs } else { & $pyCmd.Source @PyArgs }
+    }
+
     $env:PYTHONPATH = Join-Path $RepoRoot "third_party\xboxrecomp"
 
     Write-Host "[1/4] Disassembling $XbePath -> analysis\disasm ..." -ForegroundColor Cyan
-    python -m tools.disasm $XbePath -o analysis\disasm
+    Invoke-Stage @("-m", "tools.disasm", $XbePath, "-o", "analysis\disasm")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     Write-Host "[2/4] Identifying functions -> analysis\func_id ..." -ForegroundColor Cyan
-    python -m tools.func_id $XbePath `
-        --functions analysis\disasm\functions.json `
-        --strings analysis\disasm\strings.json `
-        --xrefs analysis\disasm\xrefs.json `
-        -o analysis\func_id
+    Invoke-Stage @("-m", "tools.func_id", $XbePath,
+        "--functions", "analysis\disasm\functions.json",
+        "--strings", "analysis\disasm\strings.json",
+        "--xrefs", "analysis\disasm\xrefs.json",
+        "-o", "analysis\func_id")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     Write-Host "[3/4] Running ABI analysis -> analysis\abi ..." -ForegroundColor Cyan
-    python -m tools.abi_analysis $XbePath `
-        --disasm-dir analysis\disasm `
-        --func-id-dir analysis\func_id `
-        --output-dir analysis\abi
+    Invoke-Stage @("-m", "tools.abi_analysis", $XbePath,
+        "--disasm-dir", "analysis\disasm",
+        "--func-id-dir", "analysis\func_id",
+        "--output-dir", "analysis\abi")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     Write-Host "[4/4] Lifting x86 -> C into src\recomp\gen (excluding manual overrides) ..." -ForegroundColor Cyan
-    python -m tools.recomp $XbePath `
-        --game-name "The Sims Bustin Out" `
-        --all `
-        --split $SplitSize `
-        --gen-dir src\recomp\gen `
-        --disasm-dir analysis\disasm `
-        --func-id-dir analysis\func_id `
-        --abi-dir analysis\abi `
-        --exclude-manual src\recomp_manual.c
+    Invoke-Stage @("-m", "tools.recomp", $XbePath,
+        "--game-name", "The Sims Bustin Out",
+        "--all",
+        "--split", "$SplitSize",
+        "--gen-dir", "src\recomp\gen",
+        "--disasm-dir", "analysis\disasm",
+        "--func-id-dir", "analysis\func_id",
+        "--abi-dir", "analysis\abi",
+        "--exclude-manual", "src\recomp_manual.c")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     Write-Host "`nRecompilation complete! Next run:" -ForegroundColor Green

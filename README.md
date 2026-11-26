@@ -4,14 +4,30 @@ A native Windows x64 static recompilation port of **The Sims: Bustin' Out (USA)*
 
 > **Note:** No copyrighted game assets are included. Supply your own legally dumped Original Xbox ISO (`.iso` / `.xiso.iso`) or extracted disc files.
 
-## Quick Start
+## 1-Click Setup (Recommended)
 
-1. Double-click **`play.bat`** (or `build\Release\sims_bustin_out_recomp.exe`).
-2. The native **Launcher & Settings** window opens automatically:
-   - **Game & ISO tab**: Pick your Original Xbox `.iso` / `.xiso.iso` (supports both raw XISO and Redump dual-layer images), verify Title ID `0x45410043`, and click **Extract ISO -> Game Folder** (with live progress bar — your original ISO is never modified), or browse to an already-extracted folder.
-   - **Video & Graphics tab**: Choose window resolution (`640x480` up to `2560x1440`), Windowed or Borderless Fullscreen, `4:3 Pillarbox` or `Stretch to Fill`, VSync, D3D11 Hardware Renderer, **GPU Vertex Shaders (HLSL `vs_4_0`)**, **Target Framerate (`30 FPS` Original Xbox / `60 FPS` Unlocked)**, optional projected back-face culling, CPU fallback VSH thread count, and performance logging.
-   - **Audio & Controls tab**: Toggle Xbox MCPX Audio (XAudio2), Keyboard Controls, optional Skip Launcher, and view the full Controls Reference.
-3. Click **Play The Sims: Bustin' Out** (settings are saved to `sims_launcher.ini`).
+No command-line knowledge needed:
+
+1. **Install prerequisites** (Windows 10/11 x64 — one-time install if you don't already have them):
+   ```powershell
+   winget install Python.Python.3.12 Kitware.CMake
+   winget install Microsoft.VisualStudio.2022.BuildTools --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+   ```
+   *(Already have Visual Studio 2019/2022 with C++ and Python 3.10+? Skip straight to step 2.)*
+2. **Download or clone this repository**, then **double-click `setup.bat`**:
+   - Automatically verifies Python, CMake, and Visual Studio C++, and installs `capstone` via `pip` if missing.
+   - Auto-detects a nearby Xbox `.iso` / `.xiso.iso` or opens a **Windows File Explorer picker** so you can select your legally dumped *The Sims: Bustin' Out (USA)* disc image (supports both raw XISO and Redump images — your original ISO is never modified).
+   - Automatically extracts the ISO into `game/`, statically recompiles `default.xbe` into `src/recomp/gen/`, and compiles the native Release executable (`build\Release\sims_bustin_out_recomp.exe`).
+   - Offers to launch the game immediately when finished!
+3. **Play anytime**: Double-click **`play.bat`** (if you haven't run setup yet, `play.bat` will offer to run `setup.bat` for you).
+
+### Native Launcher & Settings GUI
+
+Launching **`play.bat`** (or `build\Release\sims_bustin_out_recomp.exe`) opens the native 3-tab **Launcher & Settings** window:
+- **Game & ISO tab**: Inspect/extract another Xbox ISO with a live progress bar, switch game/save directories, or open your Saves folder.
+- **Video & Graphics tab**: Choose window resolution (`640x480` up to `2560x1440`), Windowed or Borderless Fullscreen, `4:3 Pillarbox` or `Stretch to Fill`, VSync, D3D11 Hardware Renderer, **GPU Vertex Shaders (HLSL `vs_4_0`)**, **Target Framerate (`30 FPS` Original Xbox / `60 FPS` Unlocked)**, optional projected back-face culling, CPU fallback VSH thread count, and performance logging.
+- **Audio & Controls tab**: Toggle Xbox MCPX Audio (XAudio2; cleanly mutes host output when unchecked), Keyboard Controls, optional Skip Launcher, and view the full Controls Reference.
+- Click **Play The Sims: Bustin' Out** (all settings persist in `sims_launcher.ini`).
 
 ### Command-Line Options
 
@@ -49,20 +65,18 @@ A native Windows x64 static recompilation port of **The Sims: Bustin' Out (USA)*
 - **Native Audio & Input**: Emulated MCPX APU via **XAudio2** (48 kHz stereo) + **XInput** gamepad & keyboard pad forwarding.
 - **Verified Gameplay**: Intro FMVs (`ea_games.xmv`, `sims_intro.xmv`), Title & Main Menu, Save Select (`saves/UDATA/45410043/`), Create-A-Sim, Club Rubb dream sequence, Mom's House (locked 30 FPS / 60 FPS unlocked), Buy Mode, Build Mode, Save → Quit → Reload persistence, and Free Play Mode (`Places to Go: 1 Free Street`).
 
-## Building from Source
+## Manual Build (Advanced)
 
-### Prerequisites
-- Windows 10/11 x64, Visual Studio 2022 (Desktop development with C++), CMake 3.20+, Python 3.10+ (`pip install capstone`)
-- Your own legally dumped Original Xbox ISO or extracted `game/default.xbe` (Title ID `0x45410043`)
+If you prefer running each step manually instead of double-clicking `setup.bat`:
 
-### 1. Generate Recompiled C Sources from Your `default.xbe`
-Place your extracted disc files (including `default.xbe`) in `game/` and run the helper script:
+### 1. Extract Your ISO & Generate Recompiled C Sources
+Extract your `.iso` into `game/` (using `python -m tools.xiso unpack <file.iso> -o game` with `PYTHONPATH=third_party\xboxrecomp`) and run:
 
 ```powershell
 .\scripts\recomp.ps1
 ```
 
-Or run the four pipeline stages manually:
+Or invoke all four pipeline stages directly:
 
 ```powershell
 $env:PYTHONPATH = "$PWD\third_party\xboxrecomp"
@@ -79,6 +93,15 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release --parallel
 ```
 
+## Troubleshooting
+
+- **Windows SmartScreen / PowerShell execution policy**: Always double-click `setup.bat` rather than `scripts\setup.ps1` directly — `setup.bat` launches PowerShell with `-ExecutionPolicy Bypass` automatically.
+- **"Visual Studio C++ Build Tools not found"**: Open Visual Studio Installer -> Modify -> check **Desktop development with C++**, then re-run `setup.bat`.
+- **"Python not found"**: Re-run the Python installer and check **Add python.exe to PATH**, or run `winget install Python.Python.3.12`.
+- **Re-open Launcher after enabling "Skip launcher"**: Hold **Shift** while double-clicking `play.bat`, or run `play.bat --launcher`.
+- **Want 60 FPS?** Open Launcher -> **Video & Graphics** -> set **Target Framerate** to `60 FPS (Unlocked 60 Hz)`.
+- **Setup CLI flags**: Run `setup.bat -CheckOnly` to verify prerequisites without modifying anything, `setup.bat -ForceRecomp` to re-lift `default.xbe`, or `setup.bat -ForceBuild` to force a fresh Release build.
+
 ## Project Layout
 
 | Path | Description |
@@ -89,7 +112,8 @@ cmake --build build --config Release --parallel
 | `src/nv2a_vsh_hlsl.c/.h` | GPU-side 128-bit NV2A vertex shader microcode → HLSL (`vs_4_0`) translator |
 | `src/launcher_ui.c/.h`, `src/launcher_config.c/.h` | Native Win32 3-tab Launcher, Settings UI, and `sims_launcher.ini` persistence |
 | `src/xiso_extract.c/.h` | Read-only Original Xbox XISO / Redump ISO inspector & extractor |
-| `scripts/recomp.ps1` | End-to-end helper script to lift `game/default.xbe` into `src/recomp/gen/` |
+| `setup.bat`, `scripts/setup.ps1` | 1-click interactive setup wizard (prereq check, ISO picker/extractor, recomp, Release build) |
+| `scripts/recomp.ps1` | Standalone helper script to lift `game/default.xbe` into `src/recomp/gen/` |
 | `third_party/xboxrecomp/` | Vendored MIT-licensed `xboxrecomp` runtime & Python recompilation toolkit |
 
 ## License & Credits

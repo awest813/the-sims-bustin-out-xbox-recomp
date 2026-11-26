@@ -44,8 +44,8 @@ file(GLOB RECOMP_GEN_SOURCES CONFIGURE_DEPENDS "src/recomp/gen/*.c")
 if(NOT RECOMP_GEN_SOURCES)
     message(FATAL_ERROR
         "No generated recompiled C sources found in src/recomp/gen/.\n"
-        "Place your legally dumped default.xbe in game/ and run .\\scripts\\recomp.ps1 first.\n"
-        "See README.md for step-by-step build instructions.")
+        "Double-click setup.bat (or run .\\scripts\\recomp.ps1 after extracting game/default.xbe).\n"
+        "See README.md for one-click setup instructions.")
 endif()
 
 # Core game sources
