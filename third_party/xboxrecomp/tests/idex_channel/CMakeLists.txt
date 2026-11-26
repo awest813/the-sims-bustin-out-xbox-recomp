@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.20)
+project(idex_channel_regression LANGUAGES C)
+add_subdirectory(../.. xboxrecomp)
+add_executable(idex-channel-test idex_channel_test.c)
+target_include_directories(idex-channel-test PRIVATE ../../src/kernel)
+target_link_libraries(idex-channel-test PRIVATE xboxrecomp)
+enable_testing()
+add_test(NAME idex-channel COMMAND idex-channel-test)

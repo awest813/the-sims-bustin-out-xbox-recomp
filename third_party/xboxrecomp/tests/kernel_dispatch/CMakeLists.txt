@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.20)
+project(kernel_dispatch_regression LANGUAGES C)
+add_subdirectory(../.. xboxrecomp)
+add_executable(kernel-dispatch-thread-test kernel_dispatch_thread_test.c)
+target_include_directories(kernel-dispatch-thread-test PRIVATE ../../src/kernel)
+target_link_libraries(kernel-dispatch-thread-test PRIVATE xboxrecomp)
+enable_testing()
+add_test(NAME kernel-dispatch-thread COMMAND kernel-dispatch-thread-test)
